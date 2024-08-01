@@ -1,0 +1,16 @@
+.vscode
+/api-gateway
+/auth
+/mails
+/payments
+/products
+/users
+
+
+/path
+.env
+
+/vault-config
+/vault-data
+
+secrets.env

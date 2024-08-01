@@ -1,0 +1,235 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID}
+      VAULT_DEV_LISTEN_ADDRESS: ${VAULT_DEV_LISTEN_ADDRESS}
+    volumes:
+      - ./vault-data:/vault/file
+      - ./vault-config:/vault/config
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - vault_network
+
+  secrets-loader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID}
+      - VAULT_ADDR=${VAULT_ADDR}
+    entrypoint: ["/usr/local/bin/load-secrets.sh"]
+    volumes:
+      - ./secrets.env:/secrets.env
+    networks:
+      - vault_network
+    depends_on:
+      - vault
+
+  kafka:
+    image: obsidiandynamics/kafka
+    restart: always
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    environment:
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT: ${KAFKA_ZOOKEEPER_SESSION_TIMEOUT}
+      KAFKA_RESTART_ATTEMPTS: ${KAFKA_RESTART_ATTEMPTS}
+      KAFKA_RESTART_DELAY: ${KAFKA_RESTART_DELAY}
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: ${ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL}
+    networks:
+      - app_network
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    restart: always
+    ports:
+      - "9001:9000"
+    environment:
+      KAFKA_BROKERCONNECT: ${KAFKA_BROKERCONNECT}
+    depends_on:
+      - kafka
+    networks:
+      - app_network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    depends_on:
+      - secrets-loader
+    env_file:
+      - ./secrets.env
+    entrypoint: /bin/bash -c "exec docker-entrypoint.sh rabbitmq-server"
+    networks:
+      - app_network
+
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  nats:
+    image: nats
+    restart: always
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - app_network
+
+  dynamodb:
+    image: amazon/dynamodb-local
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+    networks:
+      - app_network
+
+  # mysql:
+  #   image: mysql:8.0
+  #   restart: always
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   depends_on:
+  #     - secrets-loader
+  #   env_file:
+  #     - ./secrets.env
+  #   entrypoint: /bin/bash -c "exec docker-entrypoint.sh mysqld"
+  #   networks:
+  #     - app_network
+  #     - vault_network
+
+  mariadb:
+    image: mariadb:10
+    restart: always
+    ports:
+      - "3307:3307"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    depends_on:
+      - secrets-loader
+    env_file:
+      - ./secrets.env
+    entrypoint: /bin/bash -c "exec docker-entrypoint.sh mariadbd"
+    networks:
+      - app_network
+      - vault_network
+
+  api-gateway:
+    image: emacuello/emacommerce-api-gateway:latest
+    restart: always
+    depends_on:
+      - kafka
+      - rabbitmq
+      - mqtt
+      - nats
+      - dynamodb
+      # - mysql
+      - mariadb
+    env_file:
+      - ./secrets.env    
+    networks:
+      - app_network
+      - vault_network
+
+  auth-microservice:
+    image: emacuello/emacommerce-ms-auth:latest
+    restart: always
+    depends_on:
+      - kafka
+      - rabbitmq
+      - mqtt
+      - nats
+      - dynamodb
+      # - mysql
+      - mariadb
+    env_file:
+      - ./secrets.env    
+    networks:
+      - app_network
+      - vault_network
+
+  payment-microservice:
+    image: emacuello/emacommerce-ms-payments:latest
+    restart: always
+    depends_on:
+      - kafka
+      - rabbitmq
+      - mqtt
+      - nats
+      - dynamodb
+      # - mysql
+      - mariadb
+    env_file:
+      - ./secrets.env    
+    networks:
+      - app_network
+      - vault_network
+
+  products-microservice:
+    image: emacuello/emacommerce-ms-products:latest
+    restart: always
+    depends_on:
+      - kafka
+      - rabbitmq
+      - mqtt
+      - nats
+      - dynamodb
+      # - mysql
+      - mariadb
+    env_file:
+      - ./secrets.env    
+    networks:
+      - app_network
+      - vault_network
+
+  users-microservice:
+    image: emacuello/emacommerce-ms-users:latest
+    restart: always
+    depends_on:
+      - kafka
+      - rabbitmq
+      - mqtt
+      - nats
+      - dynamodb
+      # - mysql
+      - mariadb
+    env_file:
+      - ./secrets.env    
+    networks:
+      - app_network
+      - vault_network
+
+
+networks:
+  app_network:
+    driver: bridge
+  vault_network:
+    driver: bridge
+
+volumes:
+  dynamodb_data:
+  # mysql_data:
+  mariadb_data:
