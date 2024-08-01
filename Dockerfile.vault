@@ -1,0 +1,11 @@
+FROM hashicorp/vault:latest
+RUN apk add --no-cache jq
+# Copia el script y el archivo JSON al contenedor
+COPY put-secrets.sh /usr/local/bin/
+COPY env-vault.json /usr/local/bin/
+
+# Asegúrate de que el script tenga permisos de ejecución
+RUN chmod +x /usr/local/bin/put-secrets.sh
+
+# Comando para iniciar Vault y luego ejecutar el script
+CMD vault server -dev & sleep 5 && /usr/local/bin/put-secrets.sh && tail -f /dev/null

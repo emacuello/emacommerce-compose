@@ -1,6 +1,8 @@
 services:
   vault:
-    image: hashicorp/vault:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.vault
     container_name: vault
     ports:
       - "8200:8200"

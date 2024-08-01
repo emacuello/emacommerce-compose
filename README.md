@@ -1,5 +1,7 @@
 # Emacommerce
 
+Ecommerce realizado como aplicación distribuida con NestJS y TypeScript en el entorno de Docker.
+
 ## Diagrama
 
 ![Diagrama](https://res.cloudinary.com/dxrjz4ycj/image/upload/f_auto,q_auto/byl9xo7p9xesg3fyurbf)
@@ -27,6 +29,6 @@ Se ha usado Vault para la gestión de credenciales.
 ## Instalación
 
 1.  Clonar el repositorio
-2.  Eliminar el archivo `.env.example` y reemplazarlo con el archivo `.env` cambiar las variables de entorno de ser necesario
-3.  Eliminar el archivo `secrets.env.example` y reemplazarlo con el archivo `secrets.env`. Este archivo contiene las credenciales de los servicios que se utilizan en el proyecto, las cuales son proporcionadas por Vault, las mismas se encuentran en el archivo `env-vault.json`, modificarlas en función de la configuración que se desee.
+2.  Eliminar el archivo `.env.example` y reemplazarlo con el archivo `.env`, cambiar las variables de entorno de ser necesario
+3.  Eliminar el archivo `secrets.env.example` y reemplazarlo con el archivo `secrets.env`. Este archivo, en principio vacio, contendrá las credenciales de los servicios que se utilizan en el proyecto, las cuales son proporcionadas por Vault luego de su ejecución, las mismas se encuentran en el archivo `env-vault.json`, modificarlas en función de la configuración que se desee antes de ejecutar el comando `docker-compose up`
 4.  Ejecutar el comando `docker-compose up` en la carpeta del proyecto. Esto iniciará los servicios que se encuentran en el archivo `docker-compose.yml`
