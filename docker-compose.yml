@@ -17,6 +17,11 @@ services:
       - IPC_LOCK
     networks:
       - vault_network
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   secrets-loader:
     build:
@@ -31,7 +36,8 @@ services:
     networks:
       - vault_network
     depends_on:
-      - vault
+      vault:
+        condition: service_healthy
 
   kafka:
     image: obsidiandynamics/kafka
@@ -50,6 +56,11 @@ services:
       ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: ${ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL}
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   kafdrop:
     image: obsidiandynamics/kafdrop
@@ -59,7 +70,8 @@ services:
     environment:
       KAFKA_BROKERCONNECT: ${KAFKA_BROKERCONNECT}
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     networks:
       - app_network
 
@@ -76,6 +88,11 @@ services:
     entrypoint: /bin/bash -c "exec docker-entrypoint.sh rabbitmq-server"
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   mqtt:
     image: eclipse-mosquitto
@@ -107,21 +124,21 @@ services:
     networks:
       - app_network
 
-  # mysql:
-  #   image: mysql:8.0
-  #   restart: always
-  #   ports:
-  #     - "3306:3306"
-  #   volumes:
-  #     - mysql_data:/var/lib/mysql
-  #   depends_on:
-  #     - secrets-loader
-  #   env_file:
-  #     - ./secrets.env
-  #   entrypoint: /bin/bash -c "exec docker-entrypoint.sh mysqld"
-  #   networks:
-  #     - app_network
-  #     - vault_network
+  mysql:
+    image: mysql:8.0
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    depends_on:
+      - secrets-loader
+    env_file:
+      - ./secrets.env
+    entrypoint: /bin/bash -c "exec docker-entrypoint.sh mysqld"
+    networks:
+      - app_network
+      - vault_network
 
   mariadb:
     image: mariadb:10
@@ -142,14 +159,9 @@ services:
   api-gateway:
     image: emacuello/emacommerce-api-gateway:latest
     restart: always
-    depends_on:
-      - kafka
-      - rabbitmq
-      - mqtt
-      - nats
-      - dynamodb
-      # - mysql
-      - mariadb
+    depends_on:      
+      kafka:
+        condition: service_healthy    
     env_file:
       - ./secrets.env    
     networks:
@@ -158,15 +170,10 @@ services:
 
   auth-microservice:
     image: emacuello/emacommerce-ms-auth:latest
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - kafka
-      - rabbitmq
-      - mqtt
-      - nats
-      - dynamodb
-      # - mysql
-      - mariadb
+      rabbitmq:
+        condition: service_healthy
     env_file:
       - ./secrets.env    
     networks:
@@ -177,13 +184,8 @@ services:
     image: emacuello/emacommerce-ms-payments:latest
     restart: always
     depends_on:
-      - kafka
-      - rabbitmq
-      - mqtt
-      - nats
-      - dynamodb
-      # - mysql
-      - mariadb
+      kafka:
+        condition: service_healthy
     env_file:
       - ./secrets.env    
     networks:
@@ -191,6 +193,7 @@ services:
       - vault_network
 
   products-microservice:
+    # build: ./products
     image: emacuello/emacommerce-ms-products:latest
     restart: always
     depends_on:
@@ -199,7 +202,7 @@ services:
       - mqtt
       - nats
       - dynamodb
-      # - mysql
+      - mysql
       - mariadb
     env_file:
       - ./secrets.env    
@@ -216,7 +219,7 @@ services:
       - mqtt
       - nats
       - dynamodb
-      # - mysql
+      - mysql
       - mariadb
     env_file:
       - ./secrets.env    
@@ -233,5 +236,5 @@ networks:
 
 volumes:
   dynamodb_data:
-  # mysql_data:
+  mysql_data:
   mariadb_data:
