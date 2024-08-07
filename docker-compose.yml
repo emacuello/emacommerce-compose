@@ -58,8 +58,8 @@ services:
       - app_network
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "9092"]
-      interval: 10s
-      timeout: 10s
+      interval: 30s
+      timeout: 20s
       retries: 5
 
   kafdrop:
@@ -90,8 +90,8 @@ services:
       - app_network
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 10s
+      interval: 30s
+      timeout: 20s
       retries: 5
 
   mqtt:
@@ -184,8 +184,7 @@ services:
     image: emacuello/emacommerce-ms-payments:latest
     restart: always
     depends_on:
-      kafka:
-        condition: service_healthy
+      - api-gateway
     env_file:
       - ./secrets.env    
     networks:
