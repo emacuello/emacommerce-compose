@@ -20,6 +20,8 @@
   "PASSWORD_MARIADB": "emacommerce",
   "PORT": 3000,
   "PORT_MARIADB": 3306,
+  "PROM_PASS": "admin",
+  "PROM_USER": "admin",
   "RABBITMQ_DEFAULT_PASS": "password",
   "RABBITMQ_DEFAULT_USER": "user",
   "RMQ_QUEUE": "auth_queue",

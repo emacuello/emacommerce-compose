@@ -1,4 +1,76 @@
 services:
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: nginx
+    depends_on:
+      - api-gateway      
+      - grafana
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    depends_on:
+      - api-gateway
+    networks:
+      - app_network
+    ports:
+      - "9090:9090"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    volumes:
+        - "/:/rootfs:ro"
+        - "/var/run:/var/run:ro"
+        - "/sys:/sys:ro"
+        - "/var/lib/docker/:/var/lib/docker:ro"
+        - "/dev/disk/:/dev/disk:ro"
+    ports:
+        - "8080:8080"
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:      
+      - grafana_data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini
+    networks:
+      - app_network
+    ports:
+      - "3000:3000"
+
+  loki:
+    image: grafana/loki:2.9.2
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/config.yaml
+    depends_on:
+      - api-gateway
+    networks:
+      - app_network
+
+  promtail:
+    image: grafana/promtail:2.7.1
+    volumes:
+      - /var/log:/var/log
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - app_network
+
   vault:
     build:
       context: .
@@ -157,13 +229,19 @@ services:
       - vault_network
 
   api-gateway:
+    # build: ./api-gateway
     image: emacuello/emacommerce-api-gateway:latest
-    restart: always
+    restart: always    
     depends_on:      
+      # - kafka
       kafka:
-        condition: service_healthy    
+        condition: service_healthy
+      secrets-loader:
+        condition: service_completed_successfully
     env_file:
       - ./secrets.env    
+    expose:
+      - "3000"
     networks:
       - app_network
       - vault_network
@@ -181,6 +259,7 @@ services:
       - vault_network
 
   payment-microservice:
+    # build: ./payments
     image: emacuello/emacommerce-ms-payments:latest
     restart: always
     depends_on:
@@ -237,3 +316,5 @@ volumes:
   dynamodb_data:
   mysql_data:
   mariadb_data:
+  prometheus_data:
+  grafana_data:
