@@ -229,11 +229,9 @@ services:
       - vault_network
 
   api-gateway:
-    # build: ./api-gateway
     image: emacuello/emacommerce-api-gateway:latest
     restart: always    
     depends_on:      
-      # - kafka
       kafka:
         condition: service_healthy
       secrets-loader:
